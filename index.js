@@ -17,6 +17,7 @@
 const googleTTS = require('google-tts-api'); // CommonJS
 const fs = require('fs');
 const Stream = require('stream');
+const axios = require('axios');
 
 function base64toBinaryStream(base64Text) {
   // Convert base64 stream to binary stream
@@ -38,23 +39,24 @@ function base64toBinaryStream(base64Text) {
 * @param {boolean} cfg.useBase64Method
 */
 function downloadFromInfoCallback(stream, text, { lang, slow, host, timeout, splitPunct, useBase64Method }) {
-  if (!useBase64Method) {
+  if (useBase64Method) {
     googleTTS.getAudioBase64(text, { lang, slow, host, timeout, splitPunct })
       .then(base64Audio => base64toBinaryStream(base64Audio))
       .then(audioStream => audioStream.pipe(stream))
       .catch(console.error);
-  }
-  else {
-    googleTTS.getAudioUrl(text, { lang, slow, host, timeout, splitPunct })
-      .then(url => {
-        const response = axios({
-          url,
-          method: 'GET',
-          responseType: 'stream'
-        });
-        response.data.pipe(stream);
-      })
-      .catch(console.error);
+  } else {
+    try {
+      const url = googleTTS.getAudioUrl(text, { lang, slow, host, timeout, splitPunct });
+      const response = axios({
+        url,
+        method: 'GET',
+        responseType: 'stream'
+      }).then(response =>
+        response.data.pipe(stream)
+      ).catch(error => { throw error });
+    } catch (error) {
+      console.error(error);
+    }
   }
 }
 
